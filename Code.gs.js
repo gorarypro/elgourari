@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html b:css='false' b:responsive='true' xmlns='http://www.w3.org/1999/xhtml' xmlns:b='http://www.google.com/2005/gml/b' xmlns:data='http://www.google.com/2005/gml/data' xmlns:expr='http://www.google.com/2005/gml/expr'>
+<head>
+  <meta charset='UTF-8'/>
+  <meta content='width=device-width, initial-scale=1.0' name='viewport'/>
+  <title><data:blog.pageTitle/></title>
+
+  <!-- Canonical domain -->
+  <link rel='canonical' href='https://eventsushi.vip/'/>
+  
+  <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css' rel='stylesheet'/>
+  <link href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css' rel='stylesheet'/>
+  <link href='https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&amp;display=swap' rel='stylesheet'/>
+  
+  <link href='https://cdn.jsdelivr.net/gh/gorarypro/store/style.css' rel='stylesheet' type='text/css'/>
+  
+  <b:skin><![CDATA[
+    body { background-color: #f5f5f5; }
+  ]]></b:skin>
+</head>
+<body>
+
+  <b:section class='main' id='main' maxwidgets='1' showaddelement='no'>
+    <b:widget id='HTML1' locked='true' title='SPA Body' type='HTML' version='1'>
+      <b:widget-settings>
+        <b:widget-setting name='content'><![CDATA[<!-- Main Menu Edit Via Html -->]]></b:widget-setting>
+      </b:widget-settings>
+      <b:includable id='main'>
+      
+        <div class='toast align-items-center text-white bg-success border-0' id='notificationToast' role='alert'>
+          <div class='d-flex'>
+            <div class='toast-body'>
+              </div>
+            <button aria-label='Close' class='btn-close btn-close-white me-2 m-auto' data-bs-dismiss='toast' type='button'/>
+          </div>
+        </div>
+
+        <div class='sidebar-overlay' id='sidebarOverlay'/>
+
+        <div class='sidebar' id='cartSidebar'>
+          <div class='sidebar-header'>
+            <h4 class='m-0'>Your Cart</h4>
+            <i class='bi bi-x-lg' id='closeCart' style='cursor:pointer'/>
+          </div>
+          <div class='sidebar-body' id='cartBody'>
+            <div class='empty-sidebar' id='emptyCartMessage'>
+              <i class='bi bi-cart-x'/>
+              <p>Your cart is empty</p>
+            </div>
+          </div>
+          <div class='sidebar-footer' id='cartFooter' style='display: none;'>
+            <div class='sidebar-total'>
+              <span>Total:</span>
+              <span id='cartTotal'>0 DH</span>
+            </div>
+            <button class='checkout-btn' id='checkoutBtn'>Proceed to Checkout</button>
+          </div>
+        </div>
+
+        <div class='sidebar' id='wishlistSidebar'>
+          <div class='sidebar-header'>
+            <h4 class='m-0'>Your Wishlist</h4>
+            <i class='bi bi-x-lg' id='closeWishlist' style='cursor:pointer'/>
+          </div>
+          <div class='sidebar-body' id='wishlistBody'>
+            <div class='empty-sidebar' id='emptyWishlistMessage'>
+              <i class='bi bi-heartbreak'/>
+              <p>Your wishlist is empty</p>
+            </div>
+            </div>
+        </div>
+
+        <div class='phone-modal' id='phoneModal'>
+          <div class='phone-modal-content'>
+            <div class='phone-modal-header'>
+              <h4 class='m-0'>Complete Your Order</h4>
+            </div>
+            <div class='phone-modal-body'>
+              <div class='form-group'>
+                <label for='customerPhone'>Phone Number *</label>
+                <input class='form-control' id='customerPhone' placeholder='+212 6 00 00 00 00' required='required' type='tel'/>
+              </div>
+
+              <div class='form-group'>
+                <label for='deliveryZone'>Delivery Zone *</label>
+                <select class='form-control' id='deliveryZone' required='required'>
+                  <option value='' selected='selected' disabled='disabled'>Select your zone</option>
+                  <option value='casablanca-center'>Casablanca Center</option>
+                  <option value='casablanca-nearby'>Casablanca Nearby</option>
+                  <option value='casablanca-far'>Greater Casablanca</option>
+                </select>
+              </div>
+
+              <div class='form-group'>
+                <label>Payment Method *</label>
+                <div class='form-check'>
+                  <input class='form-check-input' type='radio' name='paymentMethod' id='paymentMethodDelivery' value='delivery' checked='checked'/>
+                  <label class='form-check-label' for='paymentMethodDelivery'>
+                    Payment at delivery (cash)
+                  </label>
+                </div>
+                <div class='form-check'>
+                  <input class='form-check-input' type='radio' name='paymentMethod' id='paymentMethodCashPlus' value='cash-plus'/>
+                  <label class='form-check-label' for='paymentMethodCashPlus'>
+                    CASH PLUS via phone number
+                  </label>
+                </div>
+              </div>
+              
+              <div class='info-option'>
+                <p>Would you like to provide additional information?</p>
+                <div class='info-options'>
+                  <button class='btn-secondary' id='noThanksBtn'>No, thanks</button>
+                  <button class='btn-primary' id='addInfoBtn'>Yes, add more info</button>
+                </div>
+              </div>
+              
+              <div id='additionalInfo' style='display:none'>
+                <div class='form-group'>
+                  <label for='customerName'>Full Name <span class='optional-label'>(Optional)</span></label>
+                  <input class='form-control' id='customerName' placeholder='John Doe' type='text'/>
+                </div>
+                <div class='form-group'>
+                  <label for='customerEmail'>Email Address <span class='optional-label'>(Optional)</span></label>
+                  <input class='form-control' id='customerEmail' placeholder='john@example.com' type='email'/>
+                </div>
+                <div class='form-group'>
+                  <label for='customerAddress'>Delivery Address <span class='optional-label'>(Optional)</span></label>
+                  <textarea class='form-control' id='customerAddress' placeholder='123 Street, City' rows='3'/>
+                </div>
+              </div>
+            </div>
+            <div class='phone-modal-footer'>
+              <button class='btn-cancel' id='cancelCheckout'>Cancel</button>
+              <button class='btn-success' id='confirmCheckout'>
+                <span id='checkoutButtonText'>Place Order</span>
+                <div class='loading' id='checkoutLoading' style='display:none'/>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class='quick-view-modal' id='quickViewModal'>
+          <div class='quick-view-modal-content'>
+            <div class='quick-view-modal-header'>
+              <h4 id='quickViewTitle'>Product Title</h4>
+              <button class='btn-close' id='closeQuickView' type='button'><i class='bi bi-x'/></button>
+            </div>
+            <div class='quick-view-modal-body'>
+              <div class='quick-view-details'>
+                <div class='quick-view-image'>
+                  <img alt='Product Image' id='quickViewImage' src='https://placehold.co/600x400'/>
+                </div>
+                <div class='quick-view-info'>
+                  <div class='price' id='quickViewPrice'>0 DH</div>
+                  <p class='description' id='quickViewDescription'>Loading product details...</p>
+                  <button class='order-btn add-to-cart-btn' id='quickViewAddToCartBtn'>
+                    <i class='bi bi-cart-plus'/>
+                    Add to Cart
+                  </button>
+                </div>
+              </div>
+              <div class='related-products'>
+                <h5>Related Products</h5>
+                <div class='related-products-grid' id='relatedProductsGrid'>
+                  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <div class='floating-btn floating-cart' id='floatingCart'>
+          <i class='bi bi-cart3'/>
+          <span class='icon-count' id='floatingCartCount'>0</span>
+        </div>
+
+        <div class='floating-btn floating-wishlist' id='floatingWishlist'>
+          <i class='bi bi-heart-fill'/>
+          <span class='icon-count' id='floatingWishlistCount'>0</span>
+        </div>
+
+        <a class='floating-btn floating-whatsapp' href='https://wa.me/212600000000' id='floatingWhatsapp' target='_blank'>
+          <i class='bi bi-whatsapp'/>
+        </a>
+
+        <header id='hero'>
+          <div class='container'>
+            <h1>Event Sushi</h1>
+            <p>Fresh. Authentic. Made with Love 🍣</p>
+            <a class='btn' href='#menu'>Explore Menu</a>
+          </div>
+        </header>
+
+        <nav class='navbar navbar-expand-lg'>
+          <div class='container-fluid'>
+            <a class='navbar-brand' href='#'>🍣 Event Sushi</a>
+            <button aria-controls='navbarNav' aria-expanded='false' aria-label='Toggle navigation' class='navbar-toggler' data-bs-target='#navbarNav' data-bs-toggle='collapse' type='button'>
+              <span class='navbar-toggler-icon'/>
+            </button>
+            <div class='collapse navbar-collapse' id='navbarNav'>
+              <ul class='navbar-nav ms-auto'>
+                <li class='nav-item'><a class='nav-link' href='#hero'>Home</a></li>
+                <li class='nav-item'><a class='nav-link' href='#menu'>Menu</a></li>
+                <li class='nav-item'><a class='nav-link' href='#about'>About</a></li>
+                <li class='nav-item'><a class='nav-link' href='#contact'>Contact</a></li>
+                <li class='nav-item'>
+                  <a class='nav-link nav-icon' id='wishlistIcon'>
+                    <i class='bi bi-heart'/>
+                    <span class='icon-count wishlist-count' id='wishlistCount'>0</span>
+                  </a>
+                </li>
+                <li class='nav-item'>
+                  <a class='nav-link nav-icon' id='cartIcon'>
+                    <i class='bi bi-cart3'/>
+                    <span class='icon-count' id='cartCount'>0</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </nav>
+
+        <section id='menu'>
+          <div class='container'>
+            <h2>🍣 Our Menu</h2>
+            <p>Choose from our selection of Minibox, Box, Appetizers, and Taco options</p>
+            
+            <div class='filter-container' id='filterContainer'>
+              <button class='filter-btn active' data-filter='all'>All</button>
+              </div>
+            
+            <div class='loading-container' id='loadingContainer'>
+              <div class='loading-spinner'/>
+              <div class='loading-text'>Loading menu...</div>
+            </div>
+            
+            <div class='error-container' id='errorContainer' style='display: none;'>
+              <div class='error-icon'>
+                <i class='bi bi-exclamation-triangle-fill'/>
+              </div>
+              <h3 class='error-title'>Unable to Load Menu</h3>
+              <p class='error-message'>A network error occurred. Please check: <br/>
+                1. Your internet connection. <br/>
+                2. That the Apps Script URL is correct. <br/>
+                3. That the script is deployed for &quot;Anyone&quot;.
+              </p>
+              <button class='retry-btn' id='retryBtn'>Try Again</button>
+            </div>
+            
+            <div id='menuSections' style='display: none;'/>
+          </div>
+        </section>
+
+        <section id='about'>
+          <div class='container'>
+            <h2>About Us</h2>
+            <p>Welcome to <strong>Event Sushi</strong> &#8212; your home for fresh, handcrafted sushi and Japanese delicacies. Every roll is made with passion and the highest quality ingredients. Whether you&#39;re dining in or ordering for your next event, we bring Japan to your plate!</p>
+          </div>
+        </section>
+
+        <section id='contact'>
+          <div class='container'>
+            <h2>Contact Us</h2>
+            <p><i class='bi bi-geo-alt'/> 123 Sushi Street, Casablanca</p>
+            <p><i class='bi bi-telephone'/> +212 6 00 00 00 00</p>
+            <p><i class='bi bi-envelope'/> hello@goraryplace.com</p>
+            <a class='btn btn-outline-light mt-3' href='#hero'>Back to Top</a>
+          </div>
+        </section>
+
+        <footer>
+          &amp;copy; 2025 Event Sushi. all rights reserved.
+        </footer>
+
+        </b:includable>
+    </b:widget>
+  </b:section>
+  
+  <script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js'></script>
+  
+  <script src='https://cdn.jsdelivr.net/gh/gorarypro/store/app.js' type='text/javascript'></script>
+
+</body>
+</html>
