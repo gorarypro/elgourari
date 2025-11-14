@@ -1,9 +1,28 @@
 document.addEventListener('DOMContentLoaded', function() {
   
   // --- Configuration ---
-  // **IMPORTANT**: Paste your NEW deployment URL (the one set to "Anyone")
-  // This must be the URL for the Code.gs that uses JSONP for everything.
-  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyp10uQxfT9J4U_4fmrKYA29iyrxgDVMWR2Q5TlM-jCUwD1aiond0MKHt5zKW9vTf2w5w/exec'; // <-- PASTE YOUR NEW URL
+  // Google Apps Script Web App URL (deployed as "Anyone")
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyp10uQxfT9J4U_4fmrKYA29iyrxgDVMWR2Q5TlM-jCUwD1aiond0MKHt5zKW9vTf2w5w/exec';
+
+  // Phone numbers
+  const CASH_PLUS_DISPLAY_PHONE = "0664070513";       // Shown in text for Cash Plus
+  const WHATSAPP_NUMBER = "212664070513";            // For wa.me (no +, no leading 0)
+
+  // Delivery zones configuration (keys must match <option value=""> in theme.xml)
+  const DELIVERY_ZONES = {
+    'casablanca-center': {
+      name: 'Casablanca Center',
+      fee: 0
+    },
+    'casablanca-nearby': {
+      name: 'Casablanca Nearby',
+      fee: 15 // DH
+    },
+    'casablanca-far': {
+      name: 'Greater Casablanca',
+      fee: 25 // DH
+    }
+  };
   
   // --- Global State ---
   let cart = [];
@@ -394,6 +413,10 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('customerName').value = '';
     document.getElementById('customerEmail').value = '';
     document.getElementById('customerAddress').value = '';
+    const paymentMethodDelivery = document.getElementById('paymentMethodDelivery');
+    if (paymentMethodDelivery) {
+      paymentMethodDelivery.checked = true;
+    }
   }
 
   let isProcessingCheckout = false;
@@ -402,18 +425,41 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isProcessingCheckout) return;
 
     const phone = document.getElementById('customerPhone').value;
+    const zoneKey = document.getElementById('deliveryZone').value;
+
     if (!phone) {
       alert('Please enter your phone number');
       return;
     }
+
+    if (!zoneKey) {
+      alert('Please select your delivery zone');
+      return;
+    }
+
+    const zone = DELIVERY_ZONES[zoneKey];
+    if (!zone) {
+      alert('Invalid delivery zone selected');
+      return;
+    }
+
+    const paymentMethodInput = document.querySelector('input[name="paymentMethod"]:checked');
+    if (!paymentMethodInput) {
+      alert('Please select a payment method');
+      return;
+    }
+    const paymentMethod = paymentMethodInput.value; // 'delivery' or 'cash-plus'
     
     isProcessingCheckout = true;
     document.getElementById('checkoutButtonText').style.display = 'none';
     document.getElementById('checkoutLoading').style.display = 'inline-block';
     
-    const totalPrice = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-    const orderDetails = cart.map(item => `${item.quantity}x ${item.title}`).join(', ');
+    const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    const deliveryFee = zone.fee;
+    const grandTotal = subtotal + deliveryFee;
     const currency = cart.length > 0 ? cart[0].currency : 'DH';
+    
+    const orderDetails = cart.map(item => `${item.quantity}x ${item.title}`).join(', ');
     
     const orderData = {
       phone: phone,
@@ -421,7 +467,11 @@ document.addEventListener('DOMContentLoaded', function() {
       email: document.getElementById('customerEmail').value || 'Not provided',
       address: document.getElementById('customerAddress').value || 'Not provided',
       orderDetails: orderDetails,
-      totalAmount: `${totalPrice.toFixed(2)} ${currency}`
+      subtotal: `${subtotal.toFixed(2)} ${currency}`,
+      deliveryFee: `${deliveryFee.toFixed(2)} ${currency}`,
+      totalAmount: `${grandTotal.toFixed(2)} ${currency}`,
+      deliveryZoneName: zone.name,
+      paymentMethod: paymentMethod
     };
 
     const callbackName = 'handleOrderResponse' + new Date().getTime();
@@ -469,16 +519,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function handleOrderSuccess(orderData) {
     showNotification('Order placed! Redirecting to WhatsApp...', 'success');
+
+    let message = `Hello! I'd like to place an order for the following items:\n\n${orderData.orderDetails}\n\n`;
+    message += `Subtotal: ${orderData.subtotal}\n`;
+    message += `Delivery zone: ${orderData.deliveryZoneName}\n`;
+    message += `Delivery fee: ${orderData.deliveryFee}\n`;
+    message += `Total: ${orderData.totalAmount}\n\n`;
     
-    let message = `Hello! I'd like to place an order for the following items:\n\n${orderData.orderDetails}\n\nTotal: ${orderData.totalAmount}\n\n`;
     message += `My details:\nPhone: ${orderData.phone}`;
     if (orderData.name !== 'Not provided') message += `\nName: ${orderData.name}`;
     if (orderData.email !== 'Not provided') message += `\nEmail: ${orderData.email}`;
     if (orderData.address !== 'Not provided') message += `\nAddress: ${orderData.address}`;
+
+    if (orderData.paymentMethod === 'delivery') {
+      message += `\n\nPayment method: Payment at delivery (cash).`;
+    } else if (orderData.paymentMethod === 'cash-plus') {
+      message += `\n\nPayment method: CASH PLUS.\nPlease pay to this number: ${CASH_PLUS_DISPLAY_PHONE}.`;
+    }
+    
     message += `\n\nPlease confirm my order. Thank you!`;
     
     setTimeout(() => {
-      const phoneNumber = "212600000000"; // Your WhatsApp number
+      const phoneNumber = WHATSAPP_NUMBER; // Your WhatsApp number (international format)
       const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
       
@@ -660,3 +722,4 @@ document.addEventListener('DOMContentLoaded', function() {
   fetchMenuData();
 
 }); // End of DOMContentLoaded
+
