@@ -67,7 +67,11 @@ function doGet(e) {
         email: e.parameter.email,
         address: e.parameter.address,
         orderDetails: e.parameter.orderDetails,
-        totalAmount: e.parameter.totalAmount
+        totalAmount: e.parameter.totalAmount,
+        subtotal: e.parameter.subtotal,
+        deliveryZoneName: e.parameter.deliveryZoneName,
+        deliveryFee: e.parameter.deliveryFee,
+        paymentMethod: e.parameter.paymentMethod
       };
       const result = saveOrderToSheet(orderData);
       return createJsonpResponse(result, callback);
@@ -102,19 +106,29 @@ function saveOrderToSheet(orderData) {
         "Email", 
         "Address", 
         "Order Details", 
-        "Total Amount"
+        "Total Amount",
+        "Delivery Zone",
+        "Delivery Fee",
+        "Subtotal",
+        "Payment Method"
       ]);
     }
     
+    const timestamp = new Date();
+    
     // Append the new order
     sheet.appendRow([
-      new Date(),
+      timestamp,
       orderData.phone,
       orderData.name,
       orderData.email,
       orderData.address,
       orderData.orderDetails,
-      orderData.totalAmount
+      orderData.totalAmount,
+      orderData.deliveryZoneName || 'Not provided',
+      orderData.deliveryFee || '0',
+      orderData.subtotal || orderData.totalAmount,
+      orderData.paymentMethod || 'Not provided'
     ]);
     
     // Return a success message
@@ -173,7 +187,7 @@ function getMenuData() {
   posts.forEach(post => {
     const title = post.title.$t;
     
-    // --- NEW: Extract full description and short description ---
+    // --- Extract full description and short description ---
     let fullDescription = '';
     let shortDescription = '';
     if (post.content && post.content.$t) {
@@ -225,9 +239,9 @@ function getMenuData() {
       categories[postCategory].posts.push({
         id: postId,
         title: title,
-        shortDescription: shortDescription,  // <-- NEW
-        fullDescription: fullDescription,  // <-- NEW
-        category: postCategory,          // <-- NEW (for related products)
+        shortDescription: shortDescription,
+        fullDescription: fullDescription,
+        category: postCategory,
         imageUrl: imageUrl,
         price: price,
         currency: currency,
@@ -261,3 +275,4 @@ function doPost(e) {
 function doOptions(e) {
   // This function is not used in our JSONP-only solution.
 }
+
