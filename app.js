@@ -202,7 +202,12 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // --- Filters ---
-  if (retryBtn) retryBtn.addEventListener('click', fetchMenuData);
+  document.addEventListener("click", function(e) {
+    if (e.target.matches("#retryBtn")) {
+      fetchMenuData();
+    }
+  });
+
 
   function initializeFilters() {
     const filterBtns = document.querySelectorAll('.filter-btn');
