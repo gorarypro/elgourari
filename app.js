@@ -277,14 +277,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     <i class="bi bi-cart-plus"></i>
                     Add to Cart
                   </button>
-                </div>
+s               </div>
               </div>
             </div>`
             )
             .join("")}
         </div>
       </div>`;
-  .forEach(c);
+    }); // <-- FIX 1: Was .forEach(c);
 
     menuSections.innerHTML = html;
   }
@@ -421,11 +421,11 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll('.wishlist-btn').forEach(btn => {
       const id = btn.dataset.id;
       const icon = btn.querySelector('i');
-      if (wishlist.some(item => item.id === id)) {
+      if (icon && wishlist.some(item => item.id === id)) { // Check if icon exists
         icon.classList.remove('bi-heart');
         icon.classList.add('bi-heart-fill');
         btn.classList.add('active'); // For styling
-      } else {
+      } else if (icon) { // Check if icon exists
         icon.classList.remove('bi-heart-fill');
         icon.classList.add('bi-heart');
         btn.classList.remove('active');
@@ -462,9 +462,9 @@ document.addEventListener("DOMContentLoaded", function () {
       .join("");
 
     localStorage.setItem("eventSushiWishlist", JSON.stringify(wishlist));
-nbsp;}
+ } // <-- FIX 2: Was nbsp;}
 
-  /* ======================================================
+nbsp;/* ======================================================
      QUICK VIEW
      ====================================================== */
 
@@ -492,7 +492,7 @@ nbsp;}
       .join("");
 
     quickViewModal.classList.add("show");
-  }
+tr> }
 
   /* ======================================================
      CHECKOUT
@@ -519,7 +519,7 @@ nbsp;}
     const zoneKey = $("deliveryZone")?.value;
 
     if (!phone || !/^\+?[0-9\s-]{8,}$/.test(phone)) {
-      return alert("Please enter a valid phone number.");
+s     return alert("Please enter a valid phone number.");
     }
     if (!zoneKey) return alert("Please select a delivery zone.");
 
@@ -531,7 +531,7 @@ nbsp;}
 
     let msg = `Hello! I'd like to place an order:\n\n`;
     msg += cart.map((i) => `${i.quantity}x ${i.title} (${i.price} DH each)`).join("\n");
-s += `\n\nSubtotal: ${subtotal.toFixed(2)} DH`;
+    msg += `\n\nSubtotal: ${subtotal.toFixed(2)} DH`; // <-- FIX 3: Was s +=
     msg += `\nDelivery Zone: ${zone.name}`;
     msg += `\nDelivery Fee: ${zone.fee.toFixed(2)} DH`;
     msg += `\n------------------`;
@@ -542,7 +542,7 @@ s += `\n\nSubtotal: ${subtotal.toFixed(2)} DH`;
     const name = $("customerName")?.value?.trim();
     const email = $("customerEmail")?.value?.trim();
     const address = $("customerAddress")?.value?.trim();
-    if (name) msg += `Name: ${name}\n`;
+img     if (name) msg += `Name: ${name}\n`;
     if (email) msg += `Email: ${email}\n`;
     if (address) msg += `Address: ${address}\n`;
 
@@ -572,13 +572,13 @@ s += `\n\nSubtotal: ${subtotal.toFixed(2)} DH`;
      UTILS
      ====================================================== */
 
-  function showNotification(msg) {
+s   function showNotification(msg) {
     const toastEl = $("notificationToast");
     if (!toastEl) return;
     
     // Ensure bootstrap is loaded
     if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
-      console.warn('Bootstrap Toast not available');
+i       console.warn('Bootstrap Toast not available');
       return;
     }
     
