@@ -1,13 +1,10 @@
-// ======================================================================
-// Event Sushi – Full Cleaned App.js (Blogger-Safe Version)
-// No logic changes, only syntax fixes + safety wrappers
-// ======================================================================
-
+// This wrapper ensures the script only runs after the
+// entire HTML document is loaded and ready.
 document.addEventListener("DOMContentLoaded", function () {
 
-  // ======================================================
-  // SAFE DOM GETTER — auto-creates missing elements (Blogger safe)
-  // ======================================================
+  /* ======================================================
+       SAFE DOM GETTER (AUTO-CREATES IF BLOGGER DELETES)
+       ====================================================== */
   function mustGet(id, fallbackHTML = "") {
     let el = document.getElementById(id);
     if (!el) {
@@ -21,9 +18,9 @@ document.addEventListener("DOMContentLoaded", function () {
     return el;
   }
 
-  // ======================================================
-  // 1. DEFINE ALL DOM ELEMENT REFERENCES
-  // ======================================================
+  /* ======================================================
+        1. DEFINE ALL DOM ELEMENT VARIABLES
+       ====================================================== */
   const menuSections = mustGet("menuSections", "<span></span>");
   const loadingContainer = mustGet("loadingContainer", "<span></span>");
   const errorContainer = mustGet("errorContainer", "<span></span>");
@@ -56,11 +53,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const phoneModal = mustGet("phoneModal");
   const additionalInfo = mustGet("additionalInfo");
 
-  const $ = (id) => document.getElementById(id);
-
-  // ======================================================
-  // 2. CONFIG
-  // ======================================================
+  /* ======================================================
+        2. CONFIG & GLOBALS
+       ====================================================== */
   const WEB_APP_URL =
     "https://script.google.com/macros/s/AKfycbyp10uQxfT9J4U_4fmrKYA29iyrxgDVMWR2Q5TlM-jCUwD1aiond0MKHt5zKW9vTf2w5w/exec";
 
@@ -77,42 +72,40 @@ document.addEventListener("DOMContentLoaded", function () {
   let wishlist = JSON.parse(localStorage.getItem("eventSushiWishlist") || "[]");
   let allProducts = [];
 
-  // ======================================================
-  // 3. GLOBAL CLICK HANDLER (ALL BUTTONS)
-  // ======================================================
+  const $ = (id) => document.getElementById(id);
+
+  /* ======================================================
+        3. DEFINE ALL FUNCTIONS
+       ====================================================== */
+
+  // Global click handler
   document.addEventListener("click", function (e) {
     const t = e.target.closest(
       "button, a, [data-id], [id^='close'], [id$='Icon'], #sidebarOverlay, #floatingCart, #floatingWishlist"
     );
     if (!t) return;
 
-    // Sidebar open/close
+    // Sidebar controls
     if (t.id === "cartIcon" || t.id === "floatingCart") openSidebar(cartSidebar);
     if (t.id === "closeCart") closeSidebar(cartSidebar);
-
     if (t.id === "wishlistIcon" || t.id === "floatingWishlist") openSidebar(wishlistSidebar);
     if (t.id === "closeWishlist") closeSidebar(wishlistSidebar);
-
     if (t.id === "sidebarOverlay") {
       closeSidebar(cartSidebar);
       closeSidebar(wishlistSidebar);
     }
 
-    // Cart
+    // Cart and Wishlist actions
     if (t.classList.contains("add-to-cart-btn") && t.dataset.id) {
       addItemToCart(t.dataset.id);
       showNotification("Added to cart!");
     }
-
-    // Wishlist
     if (t.classList.contains("wishlist-btn") && t.dataset.id) {
       toggleWishlistItem(t.dataset.id);
     }
-
     if (t.classList.contains("remove-from-wishlist-btn") && t.dataset.id) {
       toggleWishlistItem(t.dataset.id, "remove");
     }
-
     if (t.classList.contains("add-to-cart-from-wishlist-btn") && t.dataset.id) {
       addItemToCart(t.dataset.id);
       showNotification("Added to cart!");
@@ -122,30 +115,23 @@ document.addEventListener("DOMContentLoaded", function () {
     if (t.classList.contains("quick-view-btn") && t.dataset.id) {
       openQuickView(t.dataset.id);
     }
-
     if (t.id === "closeQuickView") quickViewModal.classList.remove("show");
-
     if (t.id === "quickViewAddToCartBtn" && t.dataset.id) {
       addItemToCart(t.dataset.id);
       showNotification("Added to cart!");
       quickViewModal.classList.remove("show");
     }
 
-    // Menu loading error retry
+    // Menu / Checkout Modals
     if (t.id === "retryBtn") fetchMenuData();
-
-    // Checkout buttons
     if (t.id === "checkoutBtn" && cart.length > 0) phoneModal.classList.add("show");
     if (t.id === "cancelCheckout") closePhoneModal();
     if (t.id === "confirmCheckout") handleCheckout();
-
     if (t.id === "addInfoBtn") additionalInfo.style.display = "block";
     if (t.id === "noThanksBtn") additionalInfo.style.display = "none";
   });
 
-  // ======================================================
-  // CART quantity handler
-  // ======================================================
+  // Cart quantity listener
   cartBody.addEventListener("click", function (e) {
     if (e.target.classList.contains("increase-qty")) {
       const item = cart.find((x) => x.id === e.target.dataset.id);
@@ -161,36 +147,33 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // ======================================================
-  // MENU ERROR DISPLAY
-  // ======================================================
+  // Show Error
   function showError(msg) {
     loadingContainer.style.display = "none";
     menuSections.style.display = "none";
     errorContainer.style.display = "block";
-
-    let el = errorContainer.querySelector(".error-message");
-    if (!el) {
-      el = document.createElement("p");
-      el.className = "error-message";
-      errorContainer.appendChild(el);
+    let errorMsgEl = errorContainer.querySelector('.error-message');
+    if (!errorMsgEl) {
+      errorMsgEl = document.createElement('p');
+      errorMsgEl.className = 'error-message';
+      errorContainer.appendChild(errorMsgEl);
     }
-    el.textContent = "Error: " + msg;
+    errorMsgEl.textContent = "Error: " + msg;
 
-    let retry = errorContainer.querySelector("#retryBtn");
-    if (!retry) {
-      retry = document.createElement("button");
-      retry.id = "retryBtn";
-      retry.className = "btn btn-primary";
-      retry.textContent = "Try Again";
-      errorContainer.appendChild(retry);
+    let retryBtn = errorContainer.querySelector('#retryBtn');
+    if (!retryBtn) {
+      retryBtn = document.createElement('button');
+      retryBtn.id = 'retryBtn';
+      retryBtn.textContent = 'Try Again';
+      retryBtn.className = 'btn btn-primary';
+      errorContainer.appendChild(retryBtn);
+      // Note: The main click listener will handle the 'retryBtn' click
     }
   }
 
-  // ======================================================
-  // FETCH MENU (JSONP CALL)
-  // ======================================================
+  // Fetch Menu
   function fetchMenuData() {
+    // These variables are now guaranteed to exist
     loadingContainer.style.display = "flex";
     errorContainer.style.display = "none";
     menuSections.style.display = "none";
@@ -201,40 +184,40 @@ document.addEventListener("DOMContentLoaded", function () {
     const s = document.createElement("script");
     s.id = "jsonp-menu-script";
     s.src =
-      WEB_APP_URL + "?action=getMenu&callback=handleMenuResponse&v=" + Date.now();
+      WEB_APP_URL +
+      "?action=getMenu&callback=handleMenuResponse&v=" +
+      Date.now();
 
-    s.onerror = () => showError("Failed to load menu data.");
+    s.onerror = () => showError("Network error: Could not load menu script.");
     document.body.appendChild(s);
   }
 
-  // ======================================================
-  // RENDER MENU
-  // ======================================================
+  // Render Menu
   function generateMenuHTML(categories) {
     let html = "";
     categories.forEach((c) => {
       if (!c.posts || !c.posts.length) return;
       html += `
       <div class="category-section" id="${String(c.title).toLowerCase()}-section">
-        <div class="category-header ${c.color || ""}">
-          <div class="category-icon">${c.icon || "🍣"}</div>
-          <h3 class="category-title">${c.title}</h3>
+        <div class="category-header ${c.color || ''}">
+          <div class="category-icon">${c.icon || '🍣'}</div>
+          <h3 class="category-title">${c.title || 'Category'}</h3>
         </div>
-        <p class="category-description">${c.description || ""}</p>
+        <p class="category-description">${c.description || ''}</p>
         <div class="menu-grid">
           ${c.posts
-            .map(
-              (p) => `
+          .map(
+            (p) => `
           <div class="menu-item" data-id="${p.id}">
             <div class="menu-card">
               <div class="card-img-container">
                 <img src="${p.imageUrl}" alt="${p.title}" 
-                  onerror="this.src='https://placehold.co/600x400/fe7301/white?text=Image+Error'">
+                      onerror="this.src='https://placehold.co/600x400/fe7301/white?text=Image+Error'">
                 <div class="product-card-overlay">
-                  <button class="icon-btn quick-view-btn" data-id="${p.id}">
+                  <button class="icon-btn quick-view-btn" data-id="${p.id}" title="Quick View">
                     <i class="bi bi-eye"></i>
                   </button>
-                  <button class="icon-btn wishlist-btn" data-id="${p.id}">
+                  <button class="icon-btn wishlist-btn" data-id="${p.id}" title="Add to Wishlist">
                     <i class="bi bi-heart"></i>
                   </button>
                 </div>
@@ -251,63 +234,48 @@ document.addEventListener("DOMContentLoaded", function () {
               <div class="card-footer">
                 <div class="price-tag">${p.price} ${p.currency}</div>
                 <button class="order-btn add-to-cart-btn" data-id="${p.id}">
-                  <i class="bi bi-cart-plus"></i> Add to Cart
+                  <i class="bi bi-cart-plus"></i>
+                  Add to Cart
                 </button>
               </div>
             </div>
           </div>`
-            )
-            .join("")}
+          )
+          .join("")}
         </div>
       </div>`;
     });
-
     menuSections.innerHTML = html;
   }
 
-  // ======================================================
-  // FILTER BUTTONS
-  // ======================================================
+  // Render Filters
   function populateFilterButtons(categories) {
     let html = `<button class="filter-btn active" data-filter="all">All</button>`;
     categories.forEach((c) => {
-      if (c.posts && c.posts.length > 0) {
+      if (c.posts && c.posts.length > 0)
         html += `<button class="filter-btn" data-filter="${c.title}">${c.title}</button>`;
-      }
     });
-
     filterContainer.innerHTML = html;
-
     filterContainer.addEventListener("click", function (e) {
       if (!e.target.matches(".filter-btn")) return;
-
-      [...filterContainer.children].forEach((b) =>
-        b.classList.remove("active")
+      Array.from(filterContainer.children).forEach(
+        (b) => b.classList.remove("active")
       );
       e.target.classList.add("active");
-
       const filter = e.target.dataset.filter.toLowerCase();
-
       document.querySelectorAll(".category-section").forEach((sec) => {
-        sec.style.display =
-          filter === "all" || sec.id === filter + "-section"
-            ? "block"
-            : "none";
+        sec.style.display = (filter === "all" || sec.id === filter + "-section") ? "block" : "none";
       });
     });
   }
 
-  // ======================================================
-  // CART FUNCTIONS
-  // ======================================================
+  // Cart Functions
   function addItemToCart(id) {
     const p = allProducts.find((x) => x.id === id);
     if (!p) return;
-
     const found = cart.find((i) => i.id === id);
     if (found) found.quantity++;
     else cart.push({ ...p, quantity: 1 });
-
     updateCartUI();
   }
 
@@ -326,37 +294,31 @@ document.addEventListener("DOMContentLoaded", function () {
       cartBody.innerHTML = cart
         .map(
           (i) => `
-        <div class="sidebar-item">
-          <img src="${i.imageUrl}" onerror="this.src='https://placehold.co/100x100/fe7301/white?text=Img'">
-          <div class="sidebar-item-info">
-            <div>${i.title}</div>
-            <div>${i.price} ${i.currency}</div>
-          </div>
-          <div class="sidebar-item-actions">
-            <button class="quantity-btn decrease-qty" data-id="${i.id}">-</button>
-            <span>${i.quantity}</span>
-            <button class="quantity-btn increase-qty" data-id="${i.id}">+</button>
-          </div>
-        </div>`
+      <div class="sidebar-item">
+        <img src="${i.imageUrl}" onerror="this.src='https://placehold.co/100x100/fe7301/white?text=Img'">
+        <div class="sidebar-item-info">
+          <div>${i.title}</div>
+          <div>${i.price} ${i.currency}</div>
+        </div>
+        <div class="sidebar-item-actions">
+          <button class="quantity-btn decrease-qty" data-id="${i.id}">-</button>
+          <span>${i.quantity}</span>
+          <button class="quantity-btn increase-qty" data-id="${i.id}">+</button>
+        </div>
+      </div>`
         )
         .join("");
     }
-
     cartTotal.textContent =
       cart.reduce((s, i) => s + i.price * i.quantity, 0).toFixed(2) + " DH";
-
     localStorage.setItem("eventSushiCart", JSON.stringify(cart));
   }
 
-  // ======================================================
-  // WISHLIST FUNCTIONS
-  // ======================================================
+  // Wishlist Functions
   function toggleWishlistItem(id, force) {
     const p = allProducts.find((x) => x.id === id);
     if (!p) return;
-
     const index = wishlist.findIndex((x) => x.id === id);
-
     if (force === "remove" || index !== -1) {
       wishlist.splice(index, 1);
       showNotification("Removed from wishlist");
@@ -364,26 +326,23 @@ document.addEventListener("DOMContentLoaded", function () {
       wishlist.push(p);
       showNotification("Added to wishlist!");
     }
-
     updateWishlistUI();
   }
 
   function updateWishlistUI() {
     wishlistCountNav.textContent = wishlist.length;
     floatingWishlistCount.textContent = wishlist.length;
-
-    document.querySelectorAll(".wishlist-btn").forEach((btn) => {
+    document.querySelectorAll('.wishlist-btn').forEach(btn => {
       const id = btn.dataset.id;
-      const icon = btn.querySelector("i");
-
-      if (wishlist.some((w) => w.id === id)) {
-        icon.classList.remove("bi-heart");
-        icon.classList.add("bi-heart-fill");
-        btn.classList.add("active");
-      } else {
-        icon.classList.remove("bi-heart-fill");
-        icon.classList.add("bi-heart");
-        btn.classList.remove("active");
+      const icon = btn.querySelector('i');
+      if (icon && wishlist.some(item => item.id === id)) {
+        icon.classList.remove('bi-heart');
+        icon.classList.add('bi-heart-fill');
+        btn.classList.add('active');
+      } else if (icon) {
+        icon.classList.remove('bi-heart-fill');
+        icon.classList.add('bi-heart');
+        btn.classList.remove('active');
       }
     });
 
@@ -392,9 +351,7 @@ document.addEventListener("DOMContentLoaded", function () {
       wishlistBody.innerHTML = "";
       return;
     }
-
     emptyWishlistMessage.style.display = "none";
-
     wishlistBody.innerHTML = wishlist
       .map(
         (i) => `
@@ -405,37 +362,29 @@ document.addEventListener("DOMContentLoaded", function () {
           <div>${i.price} ${i.currency}</div>
         </div>
         <div class="sidebar-item-actions">
-          <button class="icon-btn add-to-cart-from-wishlist-btn" data-id="${i.id}">
+          <button class="icon-btn add-to-cart-from-wishlist-btn" data-id="${i.id}" title="Add to Cart">
             <i class="bi bi-cart-plus"></i>
           </button>
-          <button class="icon-btn remove-from-wishlist-btn" data-id="${i.id}">
+          <button class="icon-btn remove-from-wishlist-btn" data-id="${i.id}" title="Remove">
             <i class="bi bi-trash"></i>
           </button>
         </div>
       </div>`
       )
       .join("");
-
     localStorage.setItem("eventSushiWishlist", JSON.stringify(wishlist));
   }
 
-  // ======================================================
-  // QUICK VIEW
-  // ======================================================
+  // Quick View
   function openQuickView(id) {
     const p = allProducts.find((x) => x.id === id);
     if (!p) return;
-
     quickViewTitle.textContent = p.title;
     quickViewImage.src = p.imageUrl;
-    quickViewImage.onerror = () =>
-      (quickViewImage.src =
-        "https://placehold.co/600x400/fe7301/white?text=Image+Error");
+    quickViewImage.onerror = () => { quickViewImage.src = 'https://placehold.co/600x400/fe7301/white?text=Image+Error'; };
     quickViewPrice.textContent = `${p.price} ${p.currency}`;
     quickViewDescription.textContent = p.fullDescription || p.shortDescription;
-
     quickViewAddToCartBtn.dataset.id = p.id;
-
     relatedProductsGrid.innerHTML = allProducts
       .filter((x) => x.category === p.category && x.id !== p.id)
       .slice(0, 4)
@@ -447,42 +396,35 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>`
       )
       .join("");
-
     quickViewModal.classList.add("show");
   }
 
-  // ======================================================
-  // CHECKOUT
-  // ======================================================
+  // Checkout
   function closePhoneModal() {
     phoneModal.classList.remove("show");
     additionalInfo.style.display = "none";
-
     ["customerPhone", "customerName", "customerEmail", "customerAddress"].forEach(
       (id) => {
         const el = $(id);
         if (el) el.value = "";
       }
     );
-
-    const dz = $("deliveryZone");
-    if (dz) dz.selectedIndex = 0;
-
-    const pm = $("paymentMethodDelivery");
-    if (pm) pm.checked = true;
+    if ($("deliveryZone")) $("deliveryZone").selectedIndex = 0;
+    const pmDelivery = $("paymentMethodDelivery");
+    if (pmDelivery) pmDelivery.checked = true;
   }
 
   function handleCheckout() {
     const phone = $("customerPhone")?.value?.trim();
     const zoneKey = $("deliveryZone")?.value;
 
-    if (!phone || !/^\+?[0-9\s\-]{8,}$/.test(phone))
+    if (!phone || !/^\+?[0-9\s-]{8,}$/.test(phone)) {
       return alert("Please enter a valid phone number.");
-
+    }
     if (!zoneKey) return alert("Please select a delivery zone.");
 
     const zone = DELIVERY_ZONES[zoneKey];
-    if (!zone) return alert("Invalid delivery zone.");
+    if (!zone) return alert("Invalid delivery zone selected.");
 
     const subtotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
     const total = subtotal + zone.fee;
@@ -499,18 +441,14 @@ document.addEventListener("DOMContentLoaded", function () {
     const name = $("customerName")?.value?.trim();
     const email = $("customerEmail")?.value?.trim();
     const address = $("customerAddress")?.value?.trim();
-
     if (name) msg += `Name: ${name}\n`;
     if (email) msg += `Email: ${email}\n`;
     if (address) msg += `Address: ${address}\n`;
 
     const pm = document.querySelector("input[name='paymentMethod']:checked")?.value;
-
-    if (pm === "cash-plus") {
-      msg += `\nPayment Method: CASH PLUS\nPay to: ${CASH_PLUS_PHONE}`;
-    } else {
-      msg += `\nPayment Method: Cash on Delivery`;
-    }
+    if (pm === "cash-plus")
+      msg += `\nPayment Method: CASH PLUS\n(Will pay to: ${CASH_PLUS_PHONE})`;
+    else msg += `\nPayment Method: Cash on Delivery`;
 
     window.open(
       `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`,
@@ -523,24 +461,17 @@ document.addEventListener("DOMContentLoaded", function () {
     closePhoneModal();
   }
 
-  // ======================================================
-  // UTILS
-  // ======================================================
+  // Utils
   function showNotification(msg) {
     const toastEl = $("notificationToast");
     if (!toastEl) return;
-
-    if (!bootstrap?.Toast) {
-      console.warn("Bootstrap Toast not available");
+    if (typeof bootstrap === 'undefined' || !bootstrap.Toast) {
+      console.warn('Bootstrap Toast not available');
       return;
     }
-
     const toastBody = toastEl.querySelector(".toast-body");
     if (toastBody) toastBody.textContent = msg;
-
-    const toast = bootstrap.Toast.getOrCreateInstance(toastEl, {
-      delay: 2000,
-    });
+    const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2000 });
     toast.show();
   }
 
@@ -554,32 +485,39 @@ document.addEventListener("DOMContentLoaded", function () {
     if (sidebarOverlay) sidebarOverlay.classList.remove("show");
   }
 
-  // ======================================================
-  // 4. GLOBAL JSONP CALLBACK
-  // ======================================================
+  /* ======================================================
+        4. DEFINE THE GLOBAL CALLBACK
+       ====================================================== */
+  // This MUST be on the window object to be found by the JSONP script
   window.handleMenuResponse = function (data) {
     try {
       if (!data || !Array.isArray(data)) {
-        throw new Error("Menu data invalid.");
+        throw new Error("Invalid menu data received.");
       }
-
       allProducts = data.flatMap((c) => c.posts || []);
 
+      // These functions and variables are all defined and available
+      // because this is called *after* DOMContentLoaded
       generateMenuHTML(data);
       populateFilterButtons(data);
       updateCartUI();
       updateWishlistUI();
 
+      // This is the line that caused the error. It will now work.
       loadingContainer.style.display = "none";
       menuSections.style.display = "block";
+
     } catch (err) {
       console.error("handleMenuResponse error:", err);
       showError(err.message);
     }
   };
 
-  // ======================================================
-  // 5. INIT
-  // ======================================================
+  /* ======================================================
+        5. INITIALIZE THE APP
+       ====================================================== */
+  // All elements are loaded, all functions are defined.
+  // Now, we fetch the data.
   fetchMenuData();
-});
+
+}); // This closes the DOMContentLoaded wrapper
