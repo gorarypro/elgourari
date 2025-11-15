@@ -1,6 +1,56 @@
 document.addEventListener("DOMContentLoaded", function () {
 
   /* ======================================================
+     SAFE DOM GETTER (AUTO-CREATES IF BLOGGER DELETES)
+     ====================================================== */
+  function mustGet(id, fallbackHTML = "") {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement("div");
+      el.id = id;
+      el.innerHTML = fallbackHTML;
+      el.style.display = "none";
+      document.body.appendChild(el);
+      console.warn("Auto-created missing element:", id);
+    }
+    return el;
+  }
+
+  /* Blogger sometimes deletes or changes tags.
+     We force-create all required targets. */
+  const menuSections    = mustGet("menuSections", "<span></span>");
+  const loadingContainer = mustGet("loadingContainer", "<span></span>");
+  const errorContainer  = mustGet("errorContainer", "<span></span>");
+  const filterContainer = mustGet("filterContainer", "<span></span>");
+
+  const cartSidebar     = mustGet("cartSidebar");
+  const wishlistSidebar = mustGet("wishlistSidebar");
+  const sidebarOverlay  = mustGet("sidebarOverlay");
+
+  const cartBody        = mustGet("cartBody");
+  const emptyCartMessage = mustGet("emptyCartMessage");
+  const cartFooter      = mustGet("cartFooter");
+  const cartTotal       = mustGet("cartTotal");
+  const cartCountNav    = mustGet("cartCount");
+  const floatingCartCount = mustGet("floatingCartCount");
+
+  const wishlistBody      = mustGet("wishlistBody");
+  const emptyWishlistMessage = mustGet("emptyWishlistMessage");
+  const wishlistCountNav  = mustGet("wishlistCount");
+  const floatingWishlistCount = mustGet("floatingWishlistCount");
+
+  const quickViewModal       = mustGet("quickViewModal");
+  const quickViewTitle       = mustGet("quickViewTitle");
+  const quickViewImage       = mustGet("quickViewImage");
+  const quickViewPrice       = mustGet("quickViewPrice");
+  const quickViewDescription = mustGet("quickViewDescription");
+  const quickViewAddToCartBtn = mustGet("quickViewAddToCartBtn");
+  const relatedProductsGrid   = mustGet("relatedProductsGrid");
+
+  const phoneModal    = mustGet("phoneModal");
+  const additionalInfo = mustGet("additionalInfo");
+
+  /* ======================================================
      CONFIG
      ====================================================== */
   const WEB_APP_URL =
@@ -24,115 +74,64 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const $ = (id) => document.getElementById(id);
 
-  const menuSections = $("menuSections");
-  const loadingContainer = $("loadingContainer");
-  const errorContainer = $("errorContainer");
-  const filterContainer = $("filterContainer");
-
-  const cartSidebar = $("cartSidebar");
-  const wishlistSidebar = $("wishlistSidebar");
-  const sidebarOverlay = $("sidebarOverlay");
-
-  const cartBody = $("cartBody");
-  const emptyCartMessage = $("emptyCartMessage");
-  const cartFooter = $("cartFooter");
-  const cartTotal = $("cartTotal");
-  const cartCountNav = $("cartCount");
-  const floatingCartCount = $("floatingCartCount");
-
-  const wishlistBody = $("wishlistBody");
-  const emptyWishlistMessage = $("emptyWishlistMessage");
-  const wishlistCountNav = $("wishlistCount");
-  const floatingWishlistCount = $("floatingWishlistCount");
-
-  const quickViewModal = $("quickViewModal");
-  const quickViewTitle = $("quickViewTitle");
-  const quickViewImage = $("quickViewImage");
-  const quickViewPrice = $("quickViewPrice");
-  const quickViewDescription = $("quickViewDescription");
-  const quickViewAddToCartBtn = $("quickViewAddToCartBtn");
-  const relatedProductsGrid = $("relatedProductsGrid");
-
-  const phoneModal = $("phoneModal");
-  const additionalInfo = $("additionalInfo");
-
   /* ======================================================
-     GLOBAL CLICK HANDLER (SAFE)
+     GLOBAL CLICK HANDLER
      ====================================================== */
   document.addEventListener("click", function (e) {
     const t = e.target.closest("*");
-
     if (!t) return;
 
-    // CART OPEN / CLOSE
     if (t.id === "cartIcon" || t.id === "floatingCart") openSidebar(cartSidebar);
     if (t.id === "closeCart") closeSidebar(cartSidebar);
 
-    // WISHLIST OPEN / CLOSE
     if (t.id === "wishlistIcon" || t.id === "floatingWishlist") openSidebar(wishlistSidebar);
     if (t.id === "closeWishlist") closeSidebar(wishlistSidebar);
 
-    // OVERLAY
     if (t.id === "sidebarOverlay") {
       closeSidebar(cartSidebar);
       closeSidebar(wishlistSidebar);
     }
 
-    // ADD TO CART
     if (t.classList.contains("add-to-cart-btn")) {
       addItemToCart(t.dataset.id);
       showNotification("Added to cart!");
     }
 
-    // WISHLIST
-    if (t.classList.contains("wishlist-btn"))
-      toggleWishlistItem(t.dataset.id);
+    if (t.classList.contains("wishlist-btn")) toggleWishlistItem(t.dataset.id);
 
-    if (t.classList.contains("remove-from-wishlist-btn"))
-      toggleWishlistItem(t.dataset.id, "remove");
+    if (t.classList.contains("remove-from-wishlist-btn")) toggleWishlistItem(t.dataset.id, "remove");
 
     if (t.classList.contains("add-to-cart-from-wishlist-btn")) {
       addItemToCart(t.dataset.id);
       showNotification("Added to cart!");
     }
 
-    // QUICK VIEW
     if (t.classList.contains("quick-view-btn"))
       openQuickView(t.dataset.id);
 
-    if (t.id === "closeQuickView")
-      quickViewModal?.classList.remove("show");
+    if (t.id === "closeQuickView") quickViewModal.classList.remove("show");
 
     if (t.id === "quickViewAddToCartBtn") {
       addItemToCart(t.dataset.id);
       showNotification("Added to cart!");
-      quickViewModal?.classList.remove("show");
+      quickViewModal.classList.remove("show");
     }
 
-    // MENU RETRY
-    if (t.id === "retryBtn")
-      fetchMenuData();
+    if (t.id === "retryBtn") fetchMenuData();
 
-    // CHECKOUT
     if (t.id === "checkoutBtn" && cart.length > 0)
-      phoneModal?.classList.add("show");
+      phoneModal.classList.add("show");
 
-    if (t.id === "cancelCheckout")
-      closePhoneModal();
+    if (t.id === "cancelCheckout") closePhoneModal();
 
-    if (t.id === "confirmCheckout")
-      handleCheckout();
+    if (t.id === "confirmCheckout") handleCheckout();
 
-    // EXTRA INFO
-    if (t.id === "addInfoBtn")
-      additionalInfo.style.display = "block";
-
-    if (t.id === "noThanksBtn")
-      additionalInfo.style.display = "none";
+    if (t.id === "addInfoBtn") additionalInfo.style.display = "block";
+    if (t.id === "noThanksBtn") additionalInfo.style.display = "none";
   });
 
   /* ======================================================
-     LOAD MENU (JSONP)
+     LOAD MENU
      ====================================================== */
   window.handleMenuResponse = function (data) {
     try {
@@ -143,11 +142,8 @@ document.addEventListener("DOMContentLoaded", function () {
       updateCartUI();
       updateWishlistUI();
 
-      if (loadingContainer)
-        loadingContainer.style.display = "none";
-
-      if (menuSections)
-        menuSections.style.display = "block";
+      loadingContainer.style.display = "none";
+      menuSections.style.display = "block";
 
     } catch (err) {
       showError(err.message);
@@ -155,9 +151,9 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   function fetchMenuData() {
-    if (loadingContainer) loadingContainer.style.display = "flex";
-    if (errorContainer) errorContainer.style.display = "none";
-    if (menuSections) menuSections.style.display = "none";
+    loadingContainer.style.display = "flex";
+    errorContainer.style.display = "none";
+    menuSections.style.display = "none";
 
     const old = document.getElementById("jsonp-menu-script");
     if (old) old.remove();
@@ -169,21 +165,17 @@ document.addEventListener("DOMContentLoaded", function () {
       "?action=getMenu&callback=handleMenuResponse&v=" +
       Date.now();
 
-    s.onerror = function () {
-      showError("Network error loading menu.");
-    };
-
+    s.onerror = () => showError("Network error loading menu.");
     document.body.appendChild(s);
   }
 
   fetchMenuData();
 
+
   /* ======================================================
      MENU RENDER
      ====================================================== */
   function generateMenuHTML(categories) {
-    if (!menuSections) return;
-
     let html = "";
 
     categories.forEach((c) => {
@@ -248,8 +240,6 @@ document.addEventListener("DOMContentLoaded", function () {
      FILTER BUTTONS
      ====================================================== */
   function populateFilterButtons(categories) {
-    if (!filterContainer) return;
-
     let html = `<button class="filter-btn active" data-filter="all">All</button>`;
 
     categories.forEach((c) => {
@@ -265,6 +255,7 @@ document.addEventListener("DOMContentLoaded", function () {
       document
         .querySelectorAll(".filter-btn")
         .forEach((b) => b.classList.remove("active"));
+
       e.target.classList.add("active");
 
       const filter = e.target.dataset.filter.toLowerCase();
@@ -279,6 +270,7 @@ document.addEventListener("DOMContentLoaded", function () {
   /* ======================================================
      CART
      ====================================================== */
+
   function addItemToCart(id) {
     const p = allProducts.find((x) => x.id === id);
     if (!p) return;
@@ -291,8 +283,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function updateCartUI() {
-    if (!cartBody) return;
-
     const total = cart.reduce((s, i) => s + i.quantity, 0);
 
     cartCountNav.textContent = total;
@@ -337,6 +327,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (item) item.quantity++;
       updateCartUI();
     }
+
     if (e.target.classList.contains("decrease-qty")) {
       const item = cart.find((x) => x.id === e.target.dataset.id);
       if (!item) return;
@@ -350,6 +341,7 @@ document.addEventListener("DOMContentLoaded", function () {
   /* ======================================================
      WISHLIST
      ====================================================== */
+
   function toggleWishlistItem(id, force) {
     const p = allProducts.find((x) => x.id === id);
     if (!p) return;
@@ -401,9 +393,10 @@ document.addEventListener("DOMContentLoaded", function () {
   /* ======================================================
      QUICK VIEW
      ====================================================== */
+
   function openQuickView(id) {
     const p = allProducts.find((x) => x.id === id);
-    if (!p || !quickViewModal) return;
+    if (!p) return;
 
     quickViewTitle.textContent = p.title;
     quickViewImage.src = p.imageUrl;
@@ -429,12 +422,14 @@ document.addEventListener("DOMContentLoaded", function () {
   /* ======================================================
      CHECKOUT
      ====================================================== */
+
   function closePhoneModal() {
-    phoneModal?.classList.remove("show");
-    if (additionalInfo) additionalInfo.style.display = "none";
+    phoneModal.classList.remove("show");
+    additionalInfo.style.display = "none";
+
     ["customerPhone", "customerName", "customerEmail", "customerAddress"].forEach(
-      (f) => {
-        const el = $(f);
+      (id) => {
+        const el = $(id);
         if (el) el.value = "";
       }
     );
@@ -460,9 +455,7 @@ document.addEventListener("DOMContentLoaded", function () {
     msg += `\nTotal: ${total} DH\n\n`;
     msg += `Phone: ${phone}\n`;
 
-    const pm = document.querySelector(
-      "input[name='paymentMethod']:checked"
-    )?.value;
+    const pm = document.querySelector("input[name='paymentMethod']:checked")?.value;
 
     if (pm === "cash-plus")
       msg += `Payment Method: CASH PLUS\nPay to: ${CASH_PLUS_PHONE}`;
@@ -482,6 +475,7 @@ document.addEventListener("DOMContentLoaded", function () {
   /* ======================================================
      UTILS
      ====================================================== */
+
   function showNotification(msg) {
     const toast = $("notificationToast");
     if (!toast) return;
@@ -491,14 +485,13 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function openSidebar(el) {
-    if (!el) return;
     el.classList.add("open");
-    sidebarOverlay?.classList.add("show");
+    sidebarOverlay.classList.add("show");
   }
 
   function closeSidebar(el) {
-    if (!el) return;
     el.classList.remove("open");
-    sidebarOverlay?.classList.remove("show");
+    sidebarOverlay.classList.remove("show");
   }
+
 });
