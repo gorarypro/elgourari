@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       // Apply active style to clicked button
       if (filter !== 'all') {
-          const activeColor = `var(--${filter.toLowerCase()}-filter, var(--primary))`;
+          const activeColor = filter ? `var(--${filter.toLowerCase()}-filter, var(--primary))` : `var(--primary)`;
           btn.style.backgroundColor = activeColor;
           btn.style.borderColor = activeColor;
           btn.style.color = 'white';
