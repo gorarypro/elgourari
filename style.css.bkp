@@ -1,1 +1,294 @@
+/* ===========================
+   STYLE.CSS — COMPONENTS ONLY
+   =========================== */
 
+/* --- CATEGORY SECTIONS --- */
+.category-section {
+  margin-bottom: 50px;
+}
+
+.category-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.category-title {
+  margin: 0;
+}
+
+/* --- MENU GRID --- */
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 15px;
+}
+
+.menu-item {
+  transition: transform .2s ease;
+}
+
+.menu-item:hover {
+  transform: translateY(-3px);
+}
+
+/* --- CARD --- */
+.menu-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, .07);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.card-img-container {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+}
+
+.card-img-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-card-overlay {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.icon-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #ffffffd6;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.icon-btn i {
+  font-size: 16px;
+}
+
+.price-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: #fe7301;
+  padding: 4px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.special-offer {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #d80032;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  color: #fff;
+}
+
+/* --- CARD BODY --- */
+.card-body {
+  padding: 15px;
+  flex: 1;
+}
+
+.card-title {
+  font-size: 16px;
+  margin: 0 0 5px;
+  font-weight: 600;
+}
+
+.card-text {
+  font-size: 13px;
+  color: #666;
+  margin: 0;
+}
+
+/* --- CARD FOOTER --- */
+.card-footer {
+  padding: 12px 15px;
+  background: #fafafa;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-btn {
+  background: #fe7301;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.order-btn i {
+  font-size: 16px;
+}
+
+/* =======================
+   QUICK VIEW MODAL
+   ======================= */
+.quick-view-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000000a8;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+}
+
+.quick-view-modal.show {
+  display: flex;
+}
+
+.quick-view-modal-content {
+  background: #fff;
+  width: 90%;
+  max-width: 750px;
+  border-radius: 12px;
+  overflow: hidden;
+  animation: fadeIn .25s ease;
+}
+
+.quick-view-modal-header {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  align-items: center;
+}
+
+.quick-view-details {
+  display: flex;
+  padding: 20px;
+  gap: 20px;
+}
+
+.quick-view-image img {
+  width: 260px;
+  border-radius: 8px;
+}
+
+.quick-view-info .price {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+/* =======================
+   SIDEBARS
+   ======================= */
+.sidebar {
+  position: fixed;
+  right: -100%;
+  top: 0;
+  width: 340px;
+  height: 100vh;
+  background: #fff;
+  box-shadow: -3px 0 10px rgba(0, 0, 0, .15);
+  transition: right .35s ease;
+  z-index: 2500;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar.open {
+  right: 0;
+}
+
+.sidebar-header {
+  padding: 18px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sidebar-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.sidebar-item img {
+  width: 60px;
+  border-radius: 8px;
+  margin-right: 12px;
+}
+
+.sidebar-item-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quantity-btn {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: #eee;
+  border: none;
+}
+
+/* =======================
+   FLOATING BUTTONS
+   ======================= */
+.floating-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #fe7301;
+  color: #fff;
+  padding: 12px;
+  border-radius: 50%;
+  z-index: 2500;
+  cursor: pointer;
+}
+
+.floating-btn i {
+  font-size: 22px;
+}
+
+.icon-count {
+  background: #fff;
+  color: #fe7301;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
