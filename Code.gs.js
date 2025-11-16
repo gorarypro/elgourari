@@ -14,6 +14,9 @@ const SHEET_NAME = 'Orders';
 // **IMPORTANT**: This is your Blogger feed URL.
 const BLOG_FEED_URL = 'https://eventsushi1.blogspot.com/feeds/posts/default?alt=json&max-results=50';
 
+// **IMPORTANT**: Email address to receive order notifications
+const NOTIFICATION_EMAIL = 'gorarypro@gmail.com'; // <-- PASTE YOUR EMAIL ADDRESS HERE
+
 // Cache expiration in seconds (2 hours = 7200 seconds)
 const CACHE_EXPIRATION = 7200;
 
@@ -73,6 +76,9 @@ function doGet(e) {
         deliveryFee: e.parameter.deliveryFee,
         paymentMethod: e.parameter.paymentMethod
       };
+      
+      Logger.log(`Received order data: ${JSON.stringify(orderData)}`);
+      
       const result = saveOrderToSheet(orderData);
       return createJsonpResponse(result, callback);
     } catch (error) {
@@ -131,6 +137,19 @@ function saveOrderToSheet(orderData) {
       orderData.paymentMethod || 'Not provided'
     ]);
     
+    Logger.log(`Order successfully saved to sheet for customer: ${orderData.name}`);
+    
+    // Send email notification with order details
+    try {
+      Logger.log(`Attempting to send email notification to ${NOTIFICATION_EMAIL}`);
+      const emailResult = sendOrderEmailNotification(orderData, timestamp);
+      Logger.log(`Email notification result: ${emailResult}`);
+    } catch (emailError) {
+      Logger.log(`Email notification failed: ${emailError.message}`);
+      Logger.log(`Email error stack: ${emailError.stack}`);
+      // Continue even if email fails, as the order is already saved
+    }
+    
     // Return a success message
     return { status: 'success' };
 
@@ -141,6 +160,125 @@ function saveOrderToSheet(orderData) {
   }
 }
 
+/**
+ * =================================================================
+ * SEND ORDER EMAIL NOTIFICATION
+ * This function sends an email with order details after saving to sheet.
+ * =================================================================
+ */
+function sendOrderEmailNotification(orderData, timestamp) {
+  try {
+    // Verify the email address is set
+    if (!NOTIFICATION_EMAIL || NOTIFICATION_EMAIL === 'your-email@example.com') {
+      throw new Error('Notification email address is not configured');
+    }
+    
+    Logger.log(`Preparing email notification for order from ${orderData.name}`);
+    
+    // Parse order details if it's a JSON string
+    let orderItems = [];
+    try {
+      orderItems = JSON.parse(orderData.orderDetails);
+      Logger.log(`Successfully parsed ${orderItems.length} order items`);
+    } catch (e) {
+      // If parsing fails, use the raw string
+      orderItems = orderData.orderDetails;
+      Logger.log(`Could not parse order details as JSON, using raw string: ${orderItems}`);
+    }
+    
+    // Format order items for display
+    let formattedItems = '';
+    if (Array.isArray(orderItems)) {
+      formattedItems = orderItems.map(item => 
+        `${item.name} x${item.quantity} - ${item.price} ${item.currency || 'DH'}`
+      ).join('\n');
+    } else {
+      formattedItems = orderItems;
+    }
+    
+    // Create email subject
+    const subject = `New Order Received - ${orderData.name} - ${timestamp.toLocaleString()}`;
+    
+    // Create email body
+    const body = `
+NEW ORDER RECEIVED
+
+Order Date: ${timestamp.toLocaleString()}
+
+CUSTOMER INFORMATION:
+Name: ${orderData.name}
+Phone: ${orderData.phone}
+Email: ${orderData.email}
+Address: ${orderData.address}
+
+ORDER DETAILS:
+ ${formattedItems}
+
+ORDER SUMMARY:
+Subtotal: ${orderData.subtotal || orderData.totalAmount} DH
+Delivery Zone: ${orderData.deliveryZoneName || 'Not provided'}
+Delivery Fee: ${orderData.deliveryFee || '0'} DH
+Total Amount: ${orderData.totalAmount} DH
+Payment Method: ${orderData.paymentMethod || 'Not provided'}
+
+Please process this order as soon as possible.
+`;
+    
+    Logger.log(`Sending email with subject: "${subject}"`);
+    Logger.log(`Email body length: ${body.length} characters`);
+    
+    // Send the email
+    GmailApp.sendEmail(
+      NOTIFICATION_EMAIL,
+      subject,
+      body
+    );
+    
+    const successMessage = `Order notification email successfully sent to ${NOTIFICATION_EMAIL}`;
+    Logger.log(successMessage);
+    return successMessage;
+    
+  } catch (error) {
+    Logger.log(`Error sending order notification email: ${error.message}`);
+    Logger.log(`Full error details: ${error.toString()}`);
+    throw error;
+  }
+}
+
+/**
+ * =================================================================
+ * TEST EMAIL FUNCTION - Run this manually to test email sending
+ * =================================================================
+ */
+function testEmailSending() {
+  try {
+    const testOrderData = {
+      name: 'Test Customer',
+      phone: '+1234567890',
+      email: 'test@example.com',
+      address: '123 Test Street, Test City',
+      orderDetails: JSON.stringify([
+        { name: 'Test Item 1', quantity: 2, price: 50, currency: 'DH' },
+        { name: 'Test Item 2', quantity: 1, price: 30, currency: 'DH' }
+      ]),
+      totalAmount: '130',
+      subtotal: '130',
+      deliveryZoneName: 'Test Zone',
+      deliveryFee: '0',
+      paymentMethod: 'Cash on Delivery'
+    };
+    
+    const testTimestamp = new Date();
+    
+    Logger.log('Testing email sending function...');
+    const result = sendOrderEmailNotification(testOrderData, testTimestamp);
+    Logger.log(`Test result: ${result}`);
+    return result;
+  } catch (error) {
+    Logger.log(`Test email failed: ${error.message}`);
+    throw error;
+  }
+}
 
 /**
  * =================================================================
