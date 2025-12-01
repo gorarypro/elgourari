@@ -1,455 +1,415 @@
-/** ========================================================
- *  Multipurpose Website Builder – Backend (Code.gs)
- *  SAFE VERSION — JSONP + Base64 theme XML
- *  ========================================================
- *
- *  Frontend (runtime.js) calls this as JSONP:
- *    BASE_SCRIPT_URL?action=getSettings&callback=Runtime.__jsonp_cb_...
- *
- *  doGet() detects ?callback=... and wraps JSON as:
- *    callback({...});
+/**
+ * =================================================================
+ * CONFIGURATION
+ * =================================================================
  */
+// **IMPORTANT**: 1. Create a Google Sheet. 2. Copy the ID from its URL.
+// Example: https://docs.google.com/spreadsheets/d/THIS_IS_THE_ID/edit
+const SPREADSHEET_ID = '1e5LpsErDtDD2vD-O0mkzD6u7DS8xnnTfK7Ot5eU0eao'; // <-- PASTE YOUR SHEET ID HERE
 
-/* ========================================================
- *  GitHub Integration (optional)
- * ======================================================== */
-// These constants are just defaults. In practice, we mainly
-// read github_* settings from the Settings sheet.
-const GITHUB_ENABLED = true;
-const GITHUB_REPO = 'gorarypro/multipurpose-website-builder';
-const GITHUB_BRANCH = 'main';
+// **IMPORTANT**: This is the name of the tab at the bottom of your sheet.
+// I recommend renaming "Sheet1" to "Orders".
+const SHEET_NAME = 'Orders';
 
-/* ========================================================
- *  Sheets & Blogger constants
- * ======================================================== */
-const SPREADSHEET_ID    = '1JEqIVnhjDaz7otgNAikpQj7Trw1SRG_0-iSfYMLQwtA';
-const SETTINGS_SHEET    = 'Settings';
-const ENTRIES_SHEET     = 'Entries';
-const TEXTMAPPING_SHEET = 'TextMapping';
-const THEMES_SHEET      = 'Themes';
+// **IMPORTANT**: This is your Blogger feed URL.
+const BLOG_FEED_URL = 'https://eventsushi1.blogspot.com/feeds/posts/default?alt=json&max-results=50';
 
-// Fallback Blogger feed URL if none set in the Settings sheet
-const BLOG_FEED_URL     = 'https://eventsushi1.blogspot.com/feeds/posts/default?alt=json&max-results=50';
+// **IMPORTANT**: Email address to receive order notifications
+const NOTIFICATION_EMAIL = 'gorarypro@gmail.com'; // <-- PASTE YOUR EMAIL ADDRESS HERE
 
-/* ========================================================
- * doGet — serves Builder UI or JSON/JSONP API
- * ======================================================== */
+// Cache expiration in seconds (2 hours = 7200 seconds)
+const CACHE_EXPIRATION = 7200;
+
+
+/**
+ * =================================================================
+ * HELPER FUNCTION - Creates JSONP response
+ * This wraps the JSON in a function call to bypass CORS.
+ * =================================================================
+ */
+function createJsonpResponse(data, callback) {
+  const jsonpData = `${callback}(${JSON.stringify(data)})`;
+  // We use JAVASCRIPT as the MimeType for JSONP
+  const output = ContentService.createTextOutput(jsonpData);
+  output.setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return output;
+}
+
+/**
+ * =================================================================
+ * MAIN GET REQUEST HANDLER (Handles ALL requests)
+ * =================================================================
+ */
 function doGet(e) {
-  const params = e && e.parameter ? e.parameter : {};
-  const action = params.action || '';
+  const action = e.parameter.action;
+  const callback = e.parameter.callback; // Get the callback function name
 
-  // No action → serve the Builder UI
-  if (!action) {
-    return HtmlService
-      .createTemplateFromFile('Builder')
-      .evaluate()
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  if (!callback) {
+    // We must have a callback to return JSONP
+    return ContentService.createTextOutput("Error: 'callback' parameter is missing.")
+      .setMimeType(ContentService.MimeType.TEXT);
   }
 
-  // API actions
-  switch (action) {
-    case 'getSettings':
-      return json(getSettings(), e);
-
-    case 'saveSettings':
-      return json(saveSettings(params.config), e);
-
-    case 'getProducts':
-      return json(getProducts(), e);
-
-    case 'getTextMap':
-      return json(getTextMapping(), e);
-
-    case 'saveEntry':
-      return json(saveEntry(params.entry), e);
-
-    case 'generateTheme':
-      return json(generateTheme(params.name), e);
-
-    case 'saveThemeXml':
-      return json(saveThemeXml(params.name, params.xml), e);
-
-    case 'pushThemeToGitHub':
-      return json(pushThemeToGitHub(params.name), e);
-
-    default:
-      return json(
-        { status: 'error', message: 'Unknown action: ' + action },
-        e
-      );
+  // --- Route 1: Get the Menu ---
+  if (action === 'getMenu') {
+    try {
+      const menuJson = getMenuData();
+      return createJsonpResponse(JSON.parse(menuJson), callback);
+    } catch (error) {
+      Logger.log(`getMenu Error: ${error.message}`);
+      return createJsonpResponse({ error: error.message }, callback);
+    }
+  } 
+  
+  // --- Route 2: Save an Order ---
+  else if (action === 'saveOrder') {
+    try {
+      const orderData = {
+        phone: e.parameter.phone,
+        name: e.parameter.name,
+        email: e.parameter.email,
+        address: e.parameter.address,
+        orderDetails: e.parameter.orderDetails,
+        totalAmount: e.parameter.totalAmount,
+        subtotal: e.parameter.subtotal,
+        deliveryZoneName: e.parameter.deliveryZoneName,
+        deliveryFee: e.parameter.deliveryFee,
+        paymentMethod: e.parameter.paymentMethod
+      };
+      
+      Logger.log(`Received order data: ${JSON.stringify(orderData)}`);
+      
+      const result = saveOrderToSheet(orderData);
+      return createJsonpResponse(result, callback);
+    } catch (error) {
+      Logger.log(`saveOrder Error: ${error.message}`);
+      return createJsonpResponse({ status: 'error', message: error.message }, callback);
+    }
+  } 
+  
+  // --- Invalid Action ---
+  else {
+    return createJsonpResponse({ error: 'Invalid action' }, callback);
   }
 }
 
 /**
- * json(obj, e)
- * - If e.parameter.callback exists → JSONP (callback(<json>);)
- * - Else → normal JSON
+ * =================================================================
+ * SAVE ORDER TO SHEET
+ * This function is called by doGet to save the order.
+ * =================================================================
  */
-function json(obj, e) {
-  const callback =
-    e && e.parameter && typeof e.parameter.callback === 'string'
-      ? e.parameter.callback
-      : null;
+function saveOrderToSheet(orderData) {
+  try {
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+    
+    // Add headers if sheet is empty
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        "Timestamp", 
+        "Phone", 
+        "Name", 
+        "Email", 
+        "Address", 
+        "Order Details", 
+        "Total Amount",
+        "Delivery Zone",
+        "Delivery Fee",
+        "Subtotal",
+        "Payment Method"
+      ]);
+    }
+    
+    const timestamp = new Date();
+    
+    // Append the new order
+    sheet.appendRow([
+      timestamp,
+      orderData.phone,
+      orderData.name,
+      orderData.email,
+      orderData.address,
+      orderData.orderDetails,
+      orderData.totalAmount,
+      orderData.deliveryZoneName || 'Not provided',
+      orderData.deliveryFee || '0',
+      orderData.subtotal || orderData.totalAmount,
+      orderData.paymentMethod || 'Not provided'
+    ]);
+    
+    Logger.log(`Order successfully saved to sheet for customer: ${orderData.name}`);
+    
+    // Send email notification with order details
+    try {
+      Logger.log(`Attempting to send email notification to ${NOTIFICATION_EMAIL}`);
+      const emailResult = sendOrderEmailNotification(orderData, timestamp);
+      Logger.log(`Email notification result: ${emailResult}`);
+    } catch (emailError) {
+      Logger.log(`Email notification failed: ${emailError.message}`);
+      Logger.log(`Email error stack: ${emailError.stack}`);
+      // Continue even if email fails, as the order is already saved
+    }
+    
+    // Return a success message
+    return { status: 'success' };
 
-  const text = JSON.stringify(obj);
-
-  if (callback) {
-    // JSONP
-    return ContentService
-      .createTextOutput(callback + '(' + text + ');')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  } catch (error) {
+    Logger.log(`Sheet save error: ${error.message}`);
+    // Return an error message
+    return { status: 'error', message: error.message };
   }
-
-  // Plain JSON
-  return ContentService
-    .createTextOutput(text)
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
-/* ========================================================
- * SETTINGS
- * ======================================================== */
-function getSettings() {
-  const sheet = SpreadsheetApp
-    .openById(SPREADSHEET_ID)
-    .getSheetByName(SETTINGS_SHEET);
-
-  const rows = sheet.getDataRange().getValues();
-  const map = {};
-
-  // Row 0 = header, start from 1
-  for (let i = 1; i < rows.length; i++) {
-    const key = rows[i][0];
-    const value = rows[i][1];
-    if (key) map[key] = value;
-  }
-
-  return { status: 'ok', settings: map };
-}
-
-function saveSettings(jsonConfig) {
-  const config = JSON.parse(jsonConfig);
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(SETTINGS_SHEET);
-  const rows = sheet.getDataRange().getValues();
-
-  const indexMap = {};
-  for (let i = 1; i < rows.length; i++) {
-    const key = rows[i][0];
-    if (key) indexMap[key] = i + 1; // 1-based
-  }
-
-  Object.keys(config).forEach(key => {
-    if (indexMap[key]) {
-      sheet.getRange(indexMap[key], 2).setValue(config[key]);
+/**
+ * =================================================================
+ * SEND ORDER EMAIL NOTIFICATION
+ * This function sends an email with order details after saving to sheet.
+ * =================================================================
+ */
+function sendOrderEmailNotification(orderData, timestamp) {
+  try {
+    // Verify the email address is set
+    if (!NOTIFICATION_EMAIL || NOTIFICATION_EMAIL === 'your-email@example.com') {
+      throw new Error('Notification email address is not configured');
+    }
+    
+    Logger.log(`Preparing email notification for order from ${orderData.name}`);
+    
+    // Parse order details if it's a JSON string
+    let orderItems = [];
+    try {
+      orderItems = JSON.parse(orderData.orderDetails);
+      Logger.log(`Successfully parsed ${orderItems.length} order items`);
+    } catch (e) {
+      // If parsing fails, use the raw string
+      orderItems = orderData.orderDetails;
+      Logger.log(`Could not parse order details as JSON, using raw string: ${orderItems}`);
+    }
+    
+    // Format order items for display
+    let formattedItems = '';
+    if (Array.isArray(orderItems)) {
+      formattedItems = orderItems.map(item => 
+        `${item.name} x${item.quantity} - ${item.price} ${item.currency || 'DH'}`
+      ).join('\n');
     } else {
-      const last = sheet.getLastRow() + 1;
-      sheet.getRange(last, 1).setValue(key);
-      sheet.getRange(last, 2).setValue(config[key]);
+      formattedItems = orderItems;
     }
-  });
+    
+    // Create email subject
+    const subject = `New Order Received - ${orderData.name} - ${timestamp.toLocaleString()}`;
+    
+    // Create email body
+    const body = `
+NEW ORDER RECEIVED
 
-  return { status: 'ok' };
-}
+Order Date: ${timestamp.toLocaleString()}
 
-/* ========================================================
- * PRODUCTS (Blogger / WordPress)
- * ======================================================== */
-function getProducts() {
-  const settings = getSettings().settings;
-  const source = settings.product_source || 'blogger';
+CUSTOMER INFORMATION:
+Name: ${orderData.name}
+Phone: ${orderData.phone}
+Email: ${orderData.email}
+Address: ${orderData.address}
 
-  if (source === 'wordpress' || source === 'woocommerce') {
-    return { status: 'ok', items: fetchFromWordPress(settings) };
+ORDER DETAILS:
+ ${formattedItems}
+
+ORDER SUMMARY:
+Subtotal: ${orderData.subtotal || orderData.totalAmount} DH
+Delivery Zone: ${orderData.deliveryZoneName || 'Not provided'}
+Delivery Fee: ${orderData.deliveryFee || '0'} DH
+Total Amount: ${orderData.totalAmount} DH
+Payment Method: ${orderData.paymentMethod || 'Not provided'}
+
+Please process this order as soon as possible.
+`;
+    
+    Logger.log(`Sending email with subject: "${subject}"`);
+    Logger.log(`Email body length: ${body.length} characters`);
+    
+    // Send the email
+    GmailApp.sendEmail(
+      NOTIFICATION_EMAIL,
+      subject,
+      body
+    );
+    
+    const successMessage = `Order notification email successfully sent to ${NOTIFICATION_EMAIL}`;
+    Logger.log(successMessage);
+    return successMessage;
+    
+  } catch (error) {
+    Logger.log(`Error sending order notification email: ${error.message}`);
+    Logger.log(`Full error details: ${error.toString()}`);
+    throw error;
   }
-
-  // Default: Blogger
-  return { status: 'ok', items: fetchFromBlogger(settings) };
 }
 
-/* ===== Blogger ===== */
-function fetchFromBlogger(settings) {
-  // Prefer Settings sheet value, fallback to BLOG_FEED_URL constant
-  const feedUrl = settings.blogger_feed_url || BLOG_FEED_URL;
-  if (!feedUrl) return [];
-
-  const resp = UrlFetchApp.fetch(feedUrl);
-  const data = JSON.parse(resp.getContentText());
-
-  const entries = (data.feed && data.feed.entry) || [];
-  return entries.map(entry => normalizeBloggerEntry(entry));
+/**
+ * =================================================================
+ * TEST EMAIL FUNCTION - Run this manually to test email sending
+ * =================================================================
+ */
+function testEmailSending() {
+  try {
+    const testOrderData = {
+      name: 'Test Customer',
+      phone: '+1234567890',
+      email: 'test@example.com',
+      address: '123 Test Street, Test City',
+      orderDetails: JSON.stringify([
+        { name: 'Test Item 1', quantity: 2, price: 50, currency: 'DH' },
+        { name: 'Test Item 2', quantity: 1, price: 30, currency: 'DH' }
+      ]),
+      totalAmount: '130',
+      subtotal: '130',
+      deliveryZoneName: 'Test Zone',
+      deliveryFee: '0',
+      paymentMethod: 'Cash on Delivery'
+    };
+    
+    const testTimestamp = new Date();
+    
+    Logger.log('Testing email sending function...');
+    const result = sendOrderEmailNotification(testOrderData, testTimestamp);
+    Logger.log(`Test result: ${result}`);
+    return result;
+  } catch (error) {
+    Logger.log(`Test email failed: ${error.message}`);
+    throw error;
+  }
 }
 
-function normalizeBloggerEntry(entry) {
-  const title   = entry.title  && entry.title.$t  ? entry.title.$t  : '';
-  const content = entry.content && entry.content.$t ? entry.content.$t : '';
-  const labels  = (entry.category || []).map(c => c.term);
-
-  return {
-    id      : entry.id && entry.id.$t ? entry.id.$t : '',
-    title   : title,
-    content : content,
-    labels  : labels,
-    image   : extractImageFromHtml(content),
-    price   : extractPrice(content, labels),
-    variants: extractVariantsFromLabels(labels)
+/**
+ * =================================================================
+ * GET MENU DATA (with Server-Side Caching)
+ * This function fetches from Blogger OR cache and returns the data.
+ * =================================================================
+ */
+function getMenuData() {
+  const cache = CacheService.getScriptCache();
+  const cachedData = cache.get('menuData');
+  
+  // 1. If we have valid cache, return it immediately.
+  if (cachedData != null) {
+    Logger.log('Returning data from cache.');
+    return cachedData;
+  }
+  
+  // 2. If cache is empty, fetch new data from Blogger.
+  Logger.log('Fetching fresh data from Blogger.');
+  
+  const response = UrlFetchApp.fetch(BLOG_FEED_URL, {
+    muteHttpExceptions: true
+  });
+  
+  const responseCode = response.getResponseCode();
+  const data = response.getContentText();
+  
+  if (responseCode !== 200) {
+    throw new Error(`Blogger API request failed with status ${responseCode}: ${data}`);
+  }
+  
+  const bloggerJson = JSON.parse(data);
+  const posts = bloggerJson.feed.entry || [];
+  
+  // 3. Define the categories
+  const categories = {
+    'Minibox': { title: 'Minibox', icon: '📦', description: 'Perfect portions for individual cravings.', color: 'minibox', posts: [] },
+    'Box': { title: 'Box', icon: '🍱', description: 'Complete meals beautifully arranged.', color: 'box', posts: [] },
+    'Appetizers': { title: 'Appetizers', icon: '🥟', description: 'Start your meal with our delicious appetizers.', color: 'appetizers', posts: [] },
+    'Taco': { title: 'Taco', icon: '🌮', description: 'Fusion at its finest. Our sushi tacos.', color: 'taco', posts: [] }
   };
-}
-
-function extractImageFromHtml(html) {
-  const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return m ? m[1] : '';
-}
-
-function extractPrice(content, labels) {
-  const m = content.match(/price[:=]\s*([\d.,]+)/i);
-  if (m) return m[1];
-
-  const label = labels.find(l => /^price[-:]/i.test(l));
-  return label ? label.split(/[-:]/)[1] : '';
-}
-
-function extractVariantsFromLabels(labels) {
-  const map = {};
-  (labels || []).forEach(label => {
-    const p = label.indexOf(':');
-    if (p > 0) {
-      const group  = label.slice(0, p).trim();
-      const option = label.slice(p + 1).trim();
-      if (!map[group]) map[group] = [];
-      if (!map[group].includes(option)) map[group].push(option);
+  
+  // 4. Process Blogger posts into clean JSON
+  posts.forEach(post => {
+    const title = post.title.$t;
+    
+    // --- Extract full description and short description ---
+    let fullDescription = '';
+    let shortDescription = '';
+    if (post.content && post.content.$t) {
+      // Full description is the raw text, stripped of HTML
+      fullDescription = post.content.$t.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      // Short description is truncated
+      shortDescription = fullDescription.substring(0, 100) + (fullDescription.length > 100 ? '...' : '');
     }
-  });
-  return map;
-}
-
-/* ===== WordPress (placeholder) ===== */
-function fetchFromWordPress(settings) {
-  // Example:
-  // const url  = settings.wp_api_url;
-  // if (!url) return [];
-  // const json = UrlFetchApp.fetch(url).getContentText();
-  // return JSON.parse(json).map(item => normalizeWordPress(item));
-  return [];
-}
-
-/* ========================================================
- * TEXT MAPPING
- * ======================================================== */
-function getTextMapping() {
-  const sheet = SpreadsheetApp
-    .openById(SPREADSHEET_ID)
-    .getSheetByName(TEXTMAPPING_SHEET);
-
-  const data = sheet.getDataRange().getValues();
-  const headers = data.shift();  // first row = header
-  const result = {};
-
-  data.forEach(row => {
-    const key = row[0];
-    if (!key) return;
-
-    result[key] = { default: row[1] };
-    for (let i = 2; i < headers.length; i++) {
-      const lang = headers[i];
-      if (lang) {
-        result[key][lang] = row[i];
+    
+    // Extract image URL
+    let imageUrl = 'https://placehold.co/600x400/fe7301/white?text=No+Image';
+    if (post.content && post.content.$t) {
+      const match = post.content.$t.match(/<img[^>]+src="([^"]+)"/);
+      if (match && match[1]) {
+        imageUrl = match[1];
       }
+    } else if (post.media$thumbnail) {
+      imageUrl = post.media$thumbnail.url.replace(/\/s72-c\//, '/s600/');
+    }
+    
+    // Extract tags, price, and category
+    let price = 0;
+    let currency = 'DH';
+    let isSpecialOffer = false;
+    let postCategory = null;
+    let tagsArray = [];
+    
+    if (post.category) {
+      post.category.forEach(cat => {
+        const term = cat.term;
+        tagsArray.push(term);
+        
+        if (categories[term]) {
+          postCategory = term;
+        } else if (term.startsWith('price-')) {
+          price = parseFloat(term.replace('price-', ''));
+        } else if (term === 'special-offer') {
+          isSpecialOffer = true;
+        } else if (term.startsWith('currency-')) {
+          currency = term.replace('currency-', '');
+        }
+      });
+    }
+    
+    // --- Add to appropriate category ---
+    // Item must have a category AND a price to be shown
+    if (postCategory && categories[postCategory] && price > 0) {
+      const postId = post.id.$t.split('.post-')[1];
+      categories[postCategory].posts.push({
+        id: postId,
+        title: title,
+        shortDescription: shortDescription,
+        fullDescription: fullDescription,
+        category: postCategory,
+        imageUrl: imageUrl,
+        price: price,
+        currency: currency,
+        isSpecialOffer: isSpecialOffer,
+        tags: tagsArray
+      });
     }
   });
 
-  return { status: 'ok', map: result };
+  // 5. Convert the 'categories' object into an array
+  const menuArray = Object.values(categories);
+  const menuJson = JSON.stringify(menuArray);
+  
+  // 6. Save the clean data to cache
+  cache.put('menuData', menuJson, CACHE_EXPIRATION);
+  
+  // 7. Return the clean data
+  return menuJson;
 }
 
-/* ========================================================
- * SAVE ENTRIES (orders / forms)
- * ======================================================== */
-function saveEntry(entryJson) {
-  const entry = JSON.parse(entryJson);
-  const sheet = SpreadsheetApp
-    .openById(SPREADSHEET_ID)
-    .getSheetByName(ENTRIES_SHEET);
-
-  sheet.appendRow([
-    new Date(),
-    entry.type      || '',
-    entry.productId || '',
-    entry.title     || '',
-    entry.variants  || '',
-    entry.quantity  || '',
-    entry.price     || '',
-    entry.total     || '',
-    entry.name      || '',
-    entry.email     || '',
-    entry.phone     || '',
-    entry.message   || ''
-  ]);
-
-  return { status: 'ok' };
-}
-
-/* ========================================================
- * THEME GENERATION — SAFE BASE64 VERSION
- * ======================================================== */
-function generateTheme(name) {
-  try {
-    const template = HtmlService.createTemplateFromFile('ThemeTemplate');
-    template.settings = getSettings().settings;
-
-    // Render full Blogger theme XML
-    const xml = template.evaluate().getContent();
-
-    // Encode before sending to frontend (IMPORTANT)
-    const encoded = Utilities.base64Encode(xml);
-
-    return {
-      status: 'ok',
-      xml   : encoded,
-      name  : name
-    };
-
-  } catch (err) {
-    return { status: 'error', message: err.toString() };
-  }
-}
-
-/* ========================================================
- * SAVE THEME XML TO SHEET
- * ======================================================== */
-function saveThemeXml(name, xmlPlain) {
-  try {
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    let sheet = ss.getSheetByName(THEMES_SHEET);
-
-    if (!sheet) {
-      sheet = ss.insertSheet(THEMES_SHEET);
-      sheet.appendRow(['theme_name', 'xml', 'timestamp']);
-    }
-
-    sheet.appendRow([name, xmlPlain, new Date()]);
-    return { status: 'ok' };
-
-  } catch (err) {
-    return { status: 'error', message: err.toString() };
-  }
-}
-
-/* ========================================================
- * PUSH THEME TO GITHUB (optional)
- * ======================================================== */
-function pushThemeToGitHub(name) {
-  try {
-    const settings = getSettings().settings;
-
-    // Prefer sheet settings; fallback to constants
-    const enabledFlag = (settings.github_enabled || '').toString().toLowerCase();
-    const repo   = settings.github_repo   || GITHUB_REPO;
-    const branch = settings.github_branch || GITHUB_BRANCH;
-    const token  = settings.github_token  || null;
-
-    if (!token || !repo || enabledFlag === 'no') {
-      return { status: 'error', message: 'GitHub not configured' };
-    }
-
-    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheetByName(THEMES_SHEET);
-    if (!sheet) {
-      return { status: 'error', message: 'Themes sheet not found.' };
-    }
-
-    const rows = sheet.getDataRange().getValues();
-    const row = rows.find(r => r[0] === name);
-    if (!row) {
-      return { status: 'error', message: 'Theme not found in sheet.' };
-    }
-
-    const xml  = row[1];
-    const path = 'themes/' + name + '.xml';
-
-    const url = 'https://api.github.com/repos/' + repo + '/contents/' + path;
-
-    const body = {
-      message: 'Upload Blogger theme XML',
-      content: Utilities.base64Encode(xml),
-      branch : branch
-    };
-
-    const options = {
-      method : 'put',
-      headers: {
-        Authorization: 'token ' + token,
-        Accept      : 'application/vnd.github+json'
-      },
-      payload           : JSON.stringify(body),
-      muteHttpExceptions: true
-    };
-
-    const resp = UrlFetchApp.fetch(url, options);
-    const jsonResp = JSON.parse(resp.getContentText());
-
-    if (jsonResp.content && jsonResp.content.path) {
-      return { status: 'ok', path: jsonResp.content.path };
-    }
-
-    return { status: 'error', message: JSON.stringify(jsonResp) };
-
-  } catch (err) {
-    return { status: 'error', message: err.toString() };
-  }
-}
-
-/* ========================================================
- * HTML Includes for Template()
- * ======================================================== */
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
-}
-
-/* ========================================================
- * Helpers
- * ======================================================== */
 
 /**
- * escapeXml(str)
- * Safely escape user / settings content before injecting into XML.
- * Use this INSIDE ThemeTemplate.html where needed via <?= escapeXml(...) ?>.
+ * =================================================================
+ * DO NOT USE (These are intentionally left blank)
+ * =================================================================
+ * We only use doGet for this JSONP-based script.
  */
-function escapeXml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function doPost(e) {
+  // This function is not used in our JSONP-only solution.
 }
-
-/**
- * manualGithubAuth()
- * - Run once from the Script Editor to force:
- *   - external_request scope
- *   - https://api.github.com URL whitelist
- */
-function manualGithubAuth() {
-  UrlFetchApp.fetch('https://api.github.com');
-}
-
-/**
- * testBloggerFetch()
- * - Optional helper to test BLOG_FEED_URL / settings.blogger_feed_url.
- * - Run manually from the Script Editor. Check the Logs for the status.
- */
-function testBloggerFetch() {
-  const settings = getSettings().settings;
-  const feedUrl = settings.blogger_feed_url || BLOG_FEED_URL;
-  const resp = UrlFetchApp.fetch(feedUrl);
-  Logger.log(resp.getResponseCode());
-}
-
-function debugGithubSettings() {
-  const s = getSettings().settings;
-  Logger.log('github_repo = ' + s.github_repo);
-  Logger.log('github_token = ' + (s.github_token ? 'present' : 'MISSING'));
-  Logger.log('github_branch = ' + s.github_branch);
-  Logger.log('github_enabled = ' + s.github_enabled);
+function doOptions(e) {
+  // This function is not used in our JSONP-only solution.
 }
